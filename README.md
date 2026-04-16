@@ -13,17 +13,18 @@ NetherSX2 (formerly AetherSX2) does not support selecting a Turnip driver for Qu
 
 This patch modifies **NetherSX2-v2.2n-4248** with these changes:
 
-* Added 2 Turnip Drivers built in to NetherSX2-Turnip:
-  
-  * Mr.Purple T19 - For SD865 devices (Retroid Flip 2, Retroid Mini, etc) as it gives the best performance. This is a modifed version of Mr.Purple's T19 driver specifically for SD865 (as the original could cause the whole system to reboot)
-  
-  * Mr.Purple T26 - For everything else as this Mesa/Mr.Turnip's latest and unified driver that should work on everything.
+* Added 3 Turnip Drivers built in to NetherSX2-Turnip with Adreno detection:
+  * 24.1.0_R18.a6xx - For **SD865** devices (Retroid Flip 2, Retroid Mini, etc) as it gives the best performance. This is a modifed version of the 24.1.0_R18.a6xx driver specifically for SD865 (as the original could cause the whole system to reboot)
+  * StevenMXZ's libvulkan_freedreno_Gen8_v28 for **Snapdragon Elite/8 Gen 5**
+  * StevenMXZ's libvulkan_freedreno_v26.2.0_R1 - For **everything else** as this is the latest Mesa/Turnip driver that should work for everything else.
 
 * Removes the restriction on new packages names for the APKs. Normal NetherSX2 had to be installed over AetherSX2 whereas NetherSX2-Turnip lives alongside your existing NetherSX2/AetherSX2 and does not overwrite your existing AetherSX2/NetherSX2 installs or settings.
 
 * Vulkan is now the default renderer (instead of OpenGL)
 
-* Removed the annoying warning "should not be sold, etc notification
+* Removed the annoying warning "should not be sold, etc" notification
+
+* VulkanShim now logs to /sdcard/Android/data/xyz.aethersx2.tturnip/files/vulkan_shim.log if you want to debug any issues
 
 ## How It Works
 
@@ -35,9 +36,9 @@ With NetherSX2-Turnip on my Retroid SD865 devices I can run taxing games like Sl
 
 ## Tips
 
-There is one setting that can make a big difference and that is Hardware Download Mode (under Graphics). Setting this from Accurate to Disable Readbacks can make quite a difference with only rare graphical effects. Worth experimenting with to get games like Nascar 2004 Thunder working at maximum speed.
+There is one setting that can make a big difference and that is Hardware Download Mode (under Graphics). Setting this from Accurate to Disable Readbacks can make quite a difference with only rare graphical effects. Worth experimenting with to get games like **Nascar 2004 Thunder** working at maximum speed.
 
-Additionally, for the Need For Speed games at least, setting Blending to Minimum can make a big difference on lower powered devices.
+Additionally, for the **Need For Speed** games at least, setting Blending to Minimum can make a big difference on lower powered devices.
 
 ## NetherSX2 Classic / v3668
 
