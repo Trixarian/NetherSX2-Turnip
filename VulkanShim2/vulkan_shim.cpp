@@ -772,6 +772,7 @@ extern "C" int get_adreno_model(char *value) {
         if (strstr(value, "SM8750")) return 830;  /* 8 Elite Gen 4 */
 		if (strstr(value, "CQ8725S")) return 830; /* Dragonwing Q8 */
 		if (strstr(value, "SM8735")) return 825;  /* 8s Gen 4 */
+		if (strstr(value, "SM7635")) return 810;  /* Snapdragon 7s Gen 3 and 4 */
 		
         /* extend as needed */
 		if (value[0] != 0) return 0;		// If we got a value just return the string
@@ -850,9 +851,11 @@ void shim_init(void) {
 	LOGI("VulkanShim: build = " __DATE__ " " __TIME__);
 	
 	// Check for override
+	const char *driver_dir = g_lib_dir;  // default
 	const char *override_path = "/data/local/tmp/libvulkan_freedreno.so";
 	if (access(override_path, F_OK) == 0) {
 		strcpy(g_turnip_path, override_path);
+		driver_dir = "/data/local/tmp/";
 		LOGI("VulkanShim: Using Override");
 	}
 	else {
@@ -862,6 +865,7 @@ void shim_init(void) {
 		} else {
 			if (adreno_model != 0) {
 				snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_Gen8_v28.so", g_lib_dir);		// Use this for Adreno 8
+				//snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_T24.so", g_lib_dir);		// Use this for Adreno 8
 				LOGI("VulkanShim: Using Snapdragon ELITE driver");
 			} else {
 				snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_v26.2.0_R1.so", g_lib_dir);		// Use this for Adreno 7
@@ -956,7 +960,7 @@ void shim_init(void) {
 	const char *turnip_filename = strrchr(g_turnip_path, '/');
 	turnip_filename = turnip_filename ? turnip_filename + 1 : g_turnip_path;
 
-	initHookParam(new HookImplParams(featureFlags, tmpDir[0] ? tmpDir : NULL, hookLibDir,  /*customDriverDir*/ g_lib_dir, /*customDriverName*/ turnip_filename,  NULL, importMapping));
+	initHookParam(new HookImplParams(featureFlags, tmpDir[0] ? tmpDir : NULL, hookLibDir,  /*customDriverDir*/ driver_dir, /*customDriverName*/ turnip_filename,  NULL, importMapping));
 
 	// Load the libvulkan hook into the isolated namespace
 	if (!linkernsbypass_namespace_dlopen("libmain_hook.so", RTLD_GLOBAL, hookNs))
