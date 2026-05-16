@@ -1011,7 +1011,7 @@ void shim_init(void) {
 						}
 
 						// snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_v26.2.0_R1.so", g_lib_dir);		// Use this for Adreno 7
-						snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_T27.so", g_lib_dir);		// Use this for Adreno 7
+						snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_T28.so", g_lib_dir);		// Use this for Adreno 7
 						LOGI("VulkanShim: Using *everything else* driver");
 					}
 				}
