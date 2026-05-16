@@ -753,6 +753,8 @@ extern "C" void android_unload_sphal_library(void *handle) {
     if (handle) dlclose(handle);
 }
 
+// Functions for missing ones in Android 13 libc++.so
+
 __attribute__((visibility("default")))
 extern "C" void _ZNSt3__122__libcpp_verbose_abortEPKcz(const char *fmt, ...) {
     va_list args;
@@ -760,6 +762,111 @@ extern "C" void _ZNSt3__122__libcpp_verbose_abortEPKcz(const char *fmt, ...) {
     __android_log_vprint(ANDROID_LOG_FATAL, "VulkanShim", fmt, args);
     va_end(args);
     abort();
+}
+
+__attribute__((visibility("default")))
+extern "C" void _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEED1Ev(void *self) {
+    /* basic_filebuf destructor — close the file if open */
+    /* The base class (~basic_streambuf) will be called by the linker automatically.
+       We just need to close any FILE* handle at a known offset.
+       For safety, just do nothing — libvulkan.so doesn't actually use filebuf at runtime. */
+    (void)self;
+}
+
+/* Also provide D0 (deleting destructor) variant */
+__attribute__((visibility("default")))
+extern "C" void _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEED0Ev(void *self) {
+    _ZNSt3__113basic_filebufIcNS_11char_traitsIcEEED1Ev(self);
+    free(self);
+}
+
+extern "C" void setup_turnip_env(int noubwc, int nolrz, int flushall) {
+    char buf[256] = {0};
+    char *p = buf;
+
+    if (noubwc)  p += sprintf(p, "noubwc,");
+    if (nolrz)   p += sprintf(p, "nolrz,");
+    if (flushall) p += sprintf(p, "flushall,");
+
+    // Strip trailing comma
+    if (p > buf) *(p - 1) = '\0';
+
+    if (buf[0]) 
+	{
+		LOGI("VulkanShim: TU_DEBUG: %s", buf);
+		setenv("TU_DEBUG", buf, 1);
+	}
+}
+
+static int get_adreno_gpu_id(char *out_name, size_t out_size) {
+	/* Try gpu_model first — returns e.g. "Adreno (TM) 650" */
+	FILE *f = fopen("/sys/class/kgsl/kgsl-3d0/gpu_model", "r");
+    if (f) {
+        if (fgets(out_name, out_size, f)) {
+            // Strip trailing newline 
+            char *nl = strchr(out_name, '\n');
+            if (nl) *nl = '\0';
+            fclose(f);
+            LOGI("VulkanShim: GPU model: %s", out_name);
+            return 1;
+        }
+        fclose(f);
+    }
+
+    /* Fallback: chip_id — returns hex like 0x06050002 for Adreno 650 */
+    f = fopen("/sys/class/kgsl/kgsl-3d0/gpu_chip_id", "r");
+    if (!f)
+        f = fopen("/sys/class/kgsl/kgsl-3d0/chip_id", "r");
+    if (f) {
+        char buf[32] = {0};
+        if (fgets(buf, sizeof(buf), f)) {
+            unsigned long chip_id = strtoul(buf, NULL, 16);
+            /* Adreno chip ID format: 0xCCMMPPPP
+               CC = core, MM = major, PPPP = minor/patch
+               e.g. 0x06050002 = core 6, major 5 = Adreno 650
+                    0x06030001 = core 6, major 3 = Adreno 630
+                    0x07030001 = core 7, major 3 = Adreno 730
+                    0x43050a01 = Adreno 830 (newer encoding) */
+            unsigned int core = (chip_id >> 24) & 0xFF;
+            unsigned int major = (chip_id >> 16) & 0xFF;
+
+            if (core == 0x06)
+                snprintf(out_name, out_size, "Adreno 6%d0", major);
+            else if (core == 0x07)
+                snprintf(out_name, out_size, "Adreno 7%d0", major);
+            else
+                snprintf(out_name, out_size, "Adreno (chip_id=0x%08lx)", chip_id);
+
+            LOGI("VulkanShim: GPU chip_id: 0x%08lx -> %s", chip_id, out_name);
+            fclose(f);
+            return 1;
+        }
+        fclose(f);
+    }
+
+    snprintf(out_name, out_size, "unknown");
+    return 0;
+}
+
+static int get_oneui_version() {
+    char value[PROP_VALUE_MAX] = {0};
+    
+    /* One UI major version — returns e.g. "70000" for One UI 7, "80500" for 8.5 */
+    if (__system_property_get("ro.build.version.oneui", value) > 0) {
+        int ver = atoi(value);
+        LOGI("VulkanShim: One UI version raw: %s (%d)", value, ver);
+        return ver;
+    }
+    
+    /* Fallback: Samsung Experience version (older devices) */
+    if (__system_property_get("ro.build.version.sep", value) > 0) {
+        int ver = atoi(value);
+        LOGI("VulkanShim: Samsung SEP version: %s (%d)", value, ver);
+        /* SEP 150000+ roughly maps to One UI 7+ */
+        return ver >= 150000 ? 70000 : 0;
+    }
+    
+    return 0;
 }
 
 extern "C" int get_adreno_model(char *value) {
@@ -793,24 +900,6 @@ extern "C" int get_adreno_model(char *value) {
     }
 
     return 0;
-}
-
-extern "C" void setup_turnip_env(int noubwc, int nolrz, int flushall) {
-    char buf[256] = {0};
-    char *p = buf;
-
-    if (noubwc)  p += sprintf(p, "noubwc,");
-    if (nolrz)   p += sprintf(p, "nolrz,");
-    if (flushall) p += sprintf(p, "flushall,");
-
-    // Strip trailing comma
-    if (p > buf) *(p - 1) = '\0';
-
-    if (buf[0]) 
-	{
-		LOGI("VulkanShim: TU_DEBUG: %s", buf);
-		setenv("TU_DEBUG", buf, 1);
-	}
 }
 
 /* ------------------------------------------------------------------ */
@@ -850,26 +939,82 @@ void shim_init(void) {
 	LOGI("VulkanShim: adreno_model = %d (%s)\n", adreno_model, value);
 	LOGI("VulkanShim: build = " __DATE__ " " __TIME__);
 	
+	// Try and get the Adreno version too
+	char gpu_name[64];
+	get_adreno_gpu_id(gpu_name, sizeof(gpu_name));
+	LOGI("VulkanShim: Adreno GPU = %s", gpu_name);
+
 	// Check for override
 	const char *driver_dir = g_lib_dir;  // default
 	const char *override_path = "/data/local/tmp/libvulkan_freedreno.so";
-	if (access(override_path, F_OK) == 0) {
+	if (access(override_path, F_OK) == 0) 
+	{
 		strcpy(g_turnip_path, override_path);
 		driver_dir = "/data/local/tmp/";
 		LOGI("VulkanShim: Using Override");
 	}
-	else {
-		if (strcmp(value, "SM8250") == 0 || strcasecmp(value, "kona") == 0 || strcmp(value, "SM6125") == 0 || strcasecmp(value, "trinket") == 0) {
-			snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_v24.1.0_R18.a6xx-Patched.so", g_lib_dir);		// For SD865 - Use a patched Turnip. Change Hardware mode to Disable Readbacks if crashing.
-			LOGI("VulkanShim: Using Kona specific driver");
-		} else {
-			if (adreno_model != 0) {
-				snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_Gen8_v28.so", g_lib_dir);		// Use this for Adreno 8
-				//snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_T24.so", g_lib_dir);		// Use this for Adreno 8
-				LOGI("VulkanShim: Using Snapdragon ELITE driver");
-			} else {
-				snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_v26.2.0_R1.so", g_lib_dir);		// Use this for Adreno 7
-				LOGI("VulkanShim: Using *everything else* driver");
+	else 
+	{
+		if (strcmp(value, "SM6125") == 0 || strcasecmp(value, "trinket") == 0)			// SD665 (Adreno 610) Trinket
+		{
+				snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_v26.1.0_a6xx_fix.so", g_lib_dir);		// For SD665 - jembyte recommends this driver for trinket.
+				LOGI("VulkanShim: Using Trinket specific driver");
+		}
+		else
+		{
+			if (strcmp(value, "SM8250") == 0 || strcasecmp(value, "kona") == 0 || 		// SD865 (Adreno 650)
+				strcmp(value, "SM8350") == 0 || strcasecmp(value, "lahaina") == 0 ||	// SD888 (Adreno 660)
+				strcasecmp(value, "sdm845") == 0 || strcasecmp(value, "napali") == 0	// SD845 (Adreno 630)
+			   ) 
+			{
+				snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_v24.1.0_R18.a6xx-Patched.so", g_lib_dir);		// For SD865 - Use a patched Turnip. Change Hardware mode to Disable Readbacks if crashing.
+				LOGI("VulkanShim: Using Kona specific driver");
+			} 
+			else 
+			{
+				if (adreno_model != 0) 
+				{
+					if (adreno_model == 810) 
+					{ 	// Snapdragon 8s Gen 3/4
+						snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_T24.so", g_lib_dir);		// Use this for Adreno 8
+						LOGI("VulkanShim: Using Mr Purple T24 for Snapdragon 7s Gen 3/4 driver");
+					} 
+					else 
+					{
+						snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_T28.so", g_lib_dir);		// Use this for Adreno 8
+						LOGI("VulkanShim: Using Snapdragon Default ELITE driver");
+					}
+				} 
+				else 
+				{
+					if (strstr(gpu_name, "710") || strstr(gpu_name, "720")) 											// Adreno 710, 720 needs special consideration. Needs Gmem + additions to upstream
+					{
+						snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_25.3.0_R6_Gmem.so", g_lib_dir);
+						LOGI("VulkanShim: Using Adreno 710/720 driver");
+					}
+					else
+					{
+						int oneui_version = get_oneui_version();
+						LOGI("oneui_version = %d", oneui_version);
+						if (oneui_version >= 70000)
+						{
+							setenv("FD_DEV_FEATURES", "enable_tp_ubwc_flag_hint=1", 1);
+							LOGI("VulkanShim: One UI 7+ UBWC fix enabled");
+		
+							//snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_25.3.0_R5_one_ui7_fix.so", g_lib_dir);	// Samsung UI 7+ Driver - https://github.com/K11MCH1/AdrenoToolsDrivers/releases/tag/v25.3.0-rc.05
+							//LOGI("VulkanShim: Using OneUI specific driver");
+						}
+						if (strcmp(value, "SM8635") == 0 || strcmp(value, "SSM8550") == 0) /* SM8635: 8s Gen 3 (Adreno 735) SSM8550: Snapdragon 8 Gen 2 (Adreno 740) - Needs Gmem */
+						{
+							LOGI("VulkanShim: Setting TU_DEBUG=gmem,nolrz for 8s Gen 3/8 Gen 2");
+							setenv("TU_DEBUG", "gmem,nolrz", 1);
+						}
+
+						// snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_v26.2.0_R1.so", g_lib_dir);		// Use this for Adreno 7
+						snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_T27.so", g_lib_dir);		// Use this for Adreno 7
+						LOGI("VulkanShim: Using *everything else* driver");
+					}
+				}
 			}
 		}
 	}
@@ -894,23 +1039,6 @@ void shim_init(void) {
 		else   LOGE("VulkanShim: not promotable: %s", promote[i]);
 	}
 
-	/* 3. Load bundled libs in dependency order */
-	const char *bundled[] = {
-		"libc++.so",         /* no extra deps beyond libc/libm/libdl      */
-		"libbase.so",        /* needs liblog (promoted) + libc++           */
-		"libcutils.so",      /* needs liblog + libbase + libc++            */
-		"libvndksupport.so", /* patchelf'd: libdl_android removed          */
-		"libhardware.so",    /* patchelf'd: libvndksupport removed         */
-		NULL
-	};
-	for (int i = 0; bundled[i]; i++) {
-		char path[512];
-		snprintf(path, sizeof(path), "%s%s", g_lib_dir, bundled[i]);
-		void *h = dlopen(path, RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
-		if (h) LOGI("VulkanShim: loaded bundled: %s", bundled[i]);
-		else   LOGE("VulkanShim: bundled load failed %s: %s", bundled[i], dlerror());
-	}
-	
 	/////////////////////////////////////////////////////
 	// libadrenotools approach
 	char tmpDir[512] = {0};
@@ -982,6 +1110,23 @@ void shim_init(void) {
 	}
 
 	LOGI("VulkanShim: namespace approach failed, falling back to GOT patches");
+
+	/* Only load bundled libs for fallback — namespace approach doesn't need them */
+	const char *bundled[] = {
+		"libc++.so",
+		"libbase.so",
+		"libcutils.so",
+		"libvndksupport.so",
+		"libhardware.so",
+		NULL
+	};
+	for (int i = 0; bundled[i]; i++) {
+		char path[512];
+		snprintf(path, sizeof(path), "%s%s", g_lib_dir, bundled[i]);
+		void *h = dlopen(path, RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
+		if (h) LOGI("VulkanShim: loaded bundled: %s", bundled[i]);
+		else   LOGE("VulkanShim: bundled load failed %s: %s", bundled[i], dlerror());
+	}
 
     /* 4. Pre-load Turnip while all deps are now satisfied */
     g_turnip = dlopen(g_turnip_path, RTLD_NOW | RTLD_GLOBAL | RTLD_NODELETE);
