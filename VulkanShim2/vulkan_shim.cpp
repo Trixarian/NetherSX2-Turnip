@@ -957,8 +957,8 @@ void shim_init(void) {
 	{
 		if (strcmp(value, "SM6125") == 0 || strcasecmp(value, "trinket") == 0)			// SD665 (Adreno 610) Trinket
 		{
-				snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_v26.1.0_a6xx_fix.so", g_lib_dir);		// For SD665 - jembyte recommends this driver for trinket.
-				LOGI("VulkanShim: Using Trinket specific driver");
+			snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_T19.so", g_lib_dir);		// For SD665 - jembyte recommends Mr Purple T19 driver for trinket.
+			LOGI("VulkanShim: Using Trinket specific driver");
 		}
 		else
 		{
@@ -1010,7 +1010,6 @@ void shim_init(void) {
 							setenv("TU_DEBUG", "gmem,nolrz", 1);
 						}
 
-						// snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_v26.2.0_R1.so", g_lib_dir);		// Use this for Adreno 7
 						snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_T28.so", g_lib_dir);		// Use this for Adreno 7
 						LOGI("VulkanShim: Using *everything else* driver");
 					}
