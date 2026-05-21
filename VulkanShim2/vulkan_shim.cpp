@@ -906,6 +906,8 @@ extern "C" int get_adreno_model(char *value) {
 /* Constructor                                                         */
 /* ------------------------------------------------------------------ */
 
+int g_disable_fbfetch = 0;
+
 void public_resolve_linker_symbols();
 
 extern "C" __attribute__((constructor, used))
@@ -947,6 +949,8 @@ void shim_init(void) {
 	// Check for override
 	const char *driver_dir = g_lib_dir;  // default
 	const char *override_path = "/data/local/tmp/libvulkan_freedreno.so";
+	const char *adreno8_driver = "libvulkan_freedreno_a8xx-turnip-gen8-V31.so";
+	const char *everything_else_driver = "libvulkan_freedreno_T28.so";
 	if (access(override_path, F_OK) == 0) 
 	{
 		strcpy(g_turnip_path, override_path);
@@ -976,12 +980,16 @@ void shim_init(void) {
 				{
 					if (adreno_model == 810) 
 					{ 	// Snapdragon 8s Gen 3/4
-						snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_T24.so", g_lib_dir);		// Use this for Adreno 8
-						LOGI("VulkanShim: Using Mr Purple T24 for Snapdragon 7s Gen 3/4 driver");
-					} 
-					else 
-					{
-						snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_T28.so", g_lib_dir);		// Use this for Adreno 8
+						snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_T24.so", g_lib_dir);		// Use this for Adreno 810
+						LOGI("VulkanShim: Using Mr Purple T24 for Snapdragon 7s Gen 3/4");
+					}
+					else					
+					if (adreno_model == 825) 
+					{ 	// Snapdragon 8s Gen 4 ?
+						g_disable_fbfetch = 1;
+						LOGI("VulkanShim: Setting g_disable_fbfetch = 1 for Adreno 825");
+
+						snprintf(g_turnip_path, sizeof(g_turnip_path), "%s%s", g_lib_dir, adreno8_driver);		// Use this for Adreno 8 (adreno8_driver)
 						LOGI("VulkanShim: Using Snapdragon Default ELITE driver");
 					}
 				} 
@@ -1010,7 +1018,7 @@ void shim_init(void) {
 							setenv("TU_DEBUG", "gmem,nolrz", 1);
 						}
 
-						snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_T28.so", g_lib_dir);		// Use this for Adreno 7
+						snprintf(g_turnip_path, sizeof(g_turnip_path), "%s%s", g_lib_dir, everything_else_driver);		// Use everything else driver
 						LOGI("VulkanShim: Using *everything else* driver");
 					}
 				}
@@ -1307,18 +1315,25 @@ static void hooked_GetPhysicalDeviceFeatures(void *physDev, void *pFeatures) {
 
 static VkResult (*real_EnumDeviceExtProps)(void*, const char*, uint32_t*, void*) = NULL;
 
-static VkResult hooked_EnumDeviceExtProps(void *physDev, const char *pLayer, 
+static VkResult hooked_EnumDeviceExtProps(void *physDev, const char *pLayer,
                                            uint32_t *pCount, void *pProps) {
     VkResult r = real_EnumDeviceExtProps(physDev, pLayer, pCount, pProps);
     
-    if (r == 0 && pProps && pCount) {
-        /* Each VkExtensionProperties is 260 bytes: char[256] + uint32_t */
+    if (r == 0 && pProps && pCount && g_disable_fbfetch) {
+        /* Filter out the problematic extension */
+        uint32_t write = 0;
         for (uint32_t i = 0; i < *pCount; i++) {
             char *extName = (char*)pProps + (i * 260);
-            LOGI("VulkanShim: DevExt[%u]: %s", i, extName);
+            if (strcmp(extName, "VK_EXT_rasterization_order_attachment_access") == 0 ||
+                strcmp(extName, "VK_ARM_rasterization_order_attachment_access") == 0) {
+                LOGI("VulkanShim: filtering out %s for this GPU", extName);
+                continue;
+            }
+            if (write != i)
+                memcpy((char*)pProps + (write * 260), extName, 260);
+            write++;
         }
-    } else if (r == 0 && !pProps && pCount) {
-        LOGI("VulkanShim: DevExt count = %u", *pCount);
+        *pCount = write;
     }
     return r;
 }
