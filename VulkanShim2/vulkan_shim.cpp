@@ -20,6 +20,8 @@
 #include <errno.h>
 #include <time.h>
 #include <android/dlext.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
 #include "kgsl.h"
 #include "hook_impl_params.h"
 #include <adrenotools/driver.h>
@@ -902,6 +904,58 @@ extern "C" int get_adreno_model(char *value) {
     return 0;
 }
 
+#define KGSL_DEVICE_GETPROPERTY    _IOWR(0x09, 0x02, struct kgsl_device_getproperty)
+
+static unsigned int get_gpu_chip_id(void) {
+    int fd = open("/dev/kgsl-3d0", O_RDWR);
+    if (fd < 0) {
+        LOGE("VulkanShim: cannot open /dev/kgsl-3d0: %s", strerror(errno));
+        return 0;
+    }
+
+    struct kgsl_devinfo info = {0};
+    struct kgsl_device_getproperty prop = {
+        .type = KGSL_PROP_DEVICE_INFO,
+        .value = &info,
+        .sizebytes = sizeof(info)
+    };
+
+    int ret = ioctl(fd, KGSL_DEVICE_GETPROPERTY, &prop);
+    close(fd);
+
+    if (ret < 0) {
+        LOGE("VulkanShim: KGSL getproperty failed: %s", strerror(errno));
+        return 0;
+    }
+
+    LOGI("VulkanShim: KGSL chip_id=0x%08x gpu_id=0x%x gmem=%zuKB",
+         info.chip_id, info.gpu_id, info.gmem_sizebytes / 1024);
+
+    return info.chip_id;
+}
+
+// Not working - most likely just needs a look up table from Mesa's src/freedreno/common/freedreno_devices.py
+static int chip_id_to_adreno(unsigned int chip_id) {
+    unsigned int core = (chip_id >> 24) & 0xFF;
+    unsigned int major = (chip_id >> 16) & 0xFF;
+
+    if (core == 0x06)
+        return 600 + major * 10;   /* 610, 620, 630, 640, 650, 660, 680 */
+    if (core == 0x07)
+        return 700 + major * 10;   /* 710, 720, 730, 740, 750 */
+    if (core >= 0x43) {
+        /* a8xx uses a different encoding — decode from major/minor */
+        unsigned int minor = (chip_id >> 8) & 0xFF;
+        /* 0x43050a01 = Adreno 830, 0x43050801 = Adreno 825 (approximate) */
+        /* Use gpu_id from KGSL instead for precise a8xx identification */
+        return 800 + major * 10;
+    }
+    if (core == 0x05)
+        return 500 + major * 10;   /* 505, 506, 508, 509, 510, 512, 530, 540 */
+
+    return 0; /* unknown */
+}
+
 /* ------------------------------------------------------------------ */
 /* Constructor                                                         */
 /* ------------------------------------------------------------------ */
@@ -942,9 +996,12 @@ void shim_init(void) {
 	LOGI("VulkanShim: build = " __DATE__ " " __TIME__);
 	
 	// Try and get the Adreno version too
-	char gpu_name[64];
+	char gpu_name[64] = {0};
 	get_adreno_gpu_id(gpu_name, sizeof(gpu_name));
 	LOGI("VulkanShim: Adreno GPU = %s", gpu_name);
+	unsigned int chip_id = get_gpu_chip_id();
+	//int adreno_version = chip_id_to_adreno(chip_id);
+	//LOGI("VulkanShim: adreno_version = %d", adreno_version);
 
 	// Check for override
 	const char *driver_dir = g_lib_dir;  // default
@@ -1004,10 +1061,10 @@ void shim_init(void) {
 					{
 						int oneui_version = get_oneui_version();
 						LOGI("oneui_version = %d", oneui_version);
-						if (oneui_version >= 70000)
+						if (oneui_version >= 70000 || strcmp(gpu_name, "Adreno740v2") == 0)
 						{
 							setenv("FD_DEV_FEATURES", "enable_tp_ubwc_flag_hint=1", 1);
-							LOGI("VulkanShim: One UI 7+ UBWC fix enabled");
+							LOGI("VulkanShim: One UI 7+ / Snapdragon 8 Gen 2 UBWC fix enabled");
 		
 							//snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_25.3.0_R5_one_ui7_fix.so", g_lib_dir);	// Samsung UI 7+ Driver - https://github.com/K11MCH1/AdrenoToolsDrivers/releases/tag/v25.3.0-rc.05
 							//LOGI("VulkanShim: Using OneUI specific driver");
