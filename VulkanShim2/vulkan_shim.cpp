@@ -988,10 +988,10 @@ void shim_init(void) {
 					{ 	// Snapdragon 8s Gen 4 ?
 						g_disable_fbfetch = 1;
 						LOGI("VulkanShim: Setting g_disable_fbfetch = 1 for Adreno 825");
-
-						snprintf(g_turnip_path, sizeof(g_turnip_path), "%s%s", g_lib_dir, adreno8_driver);		// Use this for Adreno 8 (adreno8_driver)
-						LOGI("VulkanShim: Using Snapdragon Default ELITE driver");
 					}
+
+					snprintf(g_turnip_path, sizeof(g_turnip_path), "%s%s", g_lib_dir, adreno8_driver);		// Use this for Adreno 8 (adreno8_driver)
+					LOGI("VulkanShim: Using Snapdragon Default ELITE driver");
 				} 
 				else 
 				{
