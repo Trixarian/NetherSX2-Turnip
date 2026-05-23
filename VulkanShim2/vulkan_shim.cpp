@@ -956,6 +956,7 @@ static int chip_id_to_adreno(unsigned int chip_id) {
     return 0; /* unknown */
 }
 
+// Hitman 2: Blood Money - "Texture Inside RT" - this inbuilt fix is causing the rainbow effect. Hold on the game to go game properties to get to the game fixes.
 /* ------------------------------------------------------------------ */
 /* Constructor                                                         */
 /* ------------------------------------------------------------------ */
