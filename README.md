@@ -15,11 +15,14 @@ NetherSX2 (formerly AetherSX2) does not support selecting a Turnip driver for Qu
 
 This patch modifies **NetherSX2-v2.2n-4248** with these changes:
 
-* Added 3 Turnip Drivers built in to NetherSX2-Turnip with Adreno detection:
+* Added 6 Turnip Drivers built in to NetherSX2-Turnip with Adreno detection:
   * 24.1.0_R18.a6xx - For **SD865** devices (Retroid Flip 2, Retroid Mini, etc) as it gives the best performance. This is a modifed version of the 24.1.0_R18.a6xx driver specifically for SD865 (as the original could cause the whole system to reboot)
-  * StevenMXZ's libvulkan_freedreno_Gen8_v28 for **Snapdragon Elite/8 Gen 5**
-  * StevenMXZ's libvulkan_freedreno_v26.2.0_R1 - For **everything else** as this is the latest Mesa/Turnip driver that should work for everything else.
-
+  * StevenMXZ's libvulkan_freedreno_Gen8_v31 for **Snapdragon Elite/8 Gen 5**
+  * K11MCH1's Turnip v25.3.0 R6 Gmem for Adreno 710/720 devices
+  * Mr.Purple's T19 - For older Adreno 610 / SnapDragon 665 devices
+  * Mr.Purple's T24 - For Adreno 810 devices as this driver reportedly works best for these models (Snapdragon 8s Gen 3 and 4)
+  * Mr.Purple's T28 - For **everything else** as this is the latest Mesa/Turnip driver that should work for everything else.
+    
 * Removes the restriction on new packages names for the APKs. Normal NetherSX2 had to be installed over AetherSX2 whereas NetherSX2-Turnip lives alongside your existing NetherSX2/AetherSX2 and does not overwrite your existing AetherSX2/NetherSX2 installs or settings.
 
 * Vulkan is now the default renderer (instead of OpenGL)
