@@ -51,6 +51,8 @@ For **Gran Turismo 4** if you can see your car, but the background looks all bla
 
 For **Star Ocean: Till the end of Time** if you have issues with the faces of characters flickering/having bad shadows go to Settings then scroll to the far most right Advanced tab. Find the option there called Enable VU0 Recompiler (Micro Mode) and turn it off while in game. You will need to turn it back on when you restart the game for the game to start properly.
 
+For **Dragon Ball Z - Budokai Tenkaichi 3** hold down on the game to bring up the Game Properties. In there go to the Advanced Settings and set the following: Auto Flush (Hardware): On, Half-Pixel Offset: Special (Texture), Software CLUT Render: Normal, Texture Inside RT: Inside Target, Skip Draw Start: 3, Skip Draw End: 3, TC Offset X (/1000): 200, TC Offset Y (/1000): 400. In Graphics Settings set Hardware Download Mode to Disable Readbacks else you will most likely get poor FPS.
+
 ## NetherSX2 Classic / v3668
 
 I have made the same changes to NetherSX2 Classic -  the additions may not be worth as much as people expect as the benefits from NetherSX2 Classic come from the OpenGL renderer as much as anything. But have released it now and will continue to do so alongside the regular 4248 version.
