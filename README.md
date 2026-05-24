@@ -47,6 +47,10 @@ Additionally, for the **Need For Speed** games at least, setting Blending Accura
 
 For **The Getaway** set Blending Accuracy to High (gets rid of the white fog), Hardware Download Mode to Disable Readbacks and EE Cycle Rate to 60% (-2)
 
+For **Gran Turismo 4** if you can see your car, but the background looks all black, that can be fixed via going to Settings -> Advanced -> Scroll down to Disable Framebuffer Fetch and set it as disabled. That should fix it.
+
+For **Star Ocean: Till the end of Time** if you have issues with the faces of characters flickering/having bad shadows go to Settings then scroll to the far most right Advanced tab. Find the option there called Enable VU0 Recompiler (Micro Mode) and turn it off while in game. You will need to turn it back on when you restart the game for the game to start properly.
+
 ## NetherSX2 Classic / v3668
 
 I have made the same changes to NetherSX2 Classic -  the additions may not be worth as much as people expect as the benefits from NetherSX2 Classic come from the OpenGL renderer as much as anything. But have released it now and will continue to do so alongside the regular 4248 version.
