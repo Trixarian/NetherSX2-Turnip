@@ -15,11 +15,14 @@ NetherSX2 (formerly AetherSX2) does not support selecting a Turnip driver for Qu
 
 This patch modifies **NetherSX2-v2.2n-4248** with these changes:
 
-* Added 3 Turnip Drivers built in to NetherSX2-Turnip with Adreno detection:
+* Added 6 Turnip Drivers built in to NetherSX2-Turnip with Adreno detection:
   * 24.1.0_R18.a6xx - For **SD865** devices (Retroid Flip 2, Retroid Mini, etc) as it gives the best performance. This is a modifed version of the 24.1.0_R18.a6xx driver specifically for SD865 (as the original could cause the whole system to reboot)
-  * StevenMXZ's libvulkan_freedreno_Gen8_v28 for **Snapdragon Elite/8 Gen 5**
-  * StevenMXZ's libvulkan_freedreno_v26.2.0_R1 - For **everything else** as this is the latest Mesa/Turnip driver that should work for everything else.
-
+  * StevenMXZ's libvulkan_freedreno_Gen8_v31 for **Snapdragon Elite/8 Gen 5**
+  * K11MCH1's Turnip v25.3.0 R6 Gmem for Adreno 710/720 devices
+  * Mr.Purple's T19 - For older Adreno 610 / SnapDragon 665 devices
+  * Mr.Purple's T24 - For Adreno 810 devices as this driver reportedly works best for these models (Snapdragon 8s Gen 3 and 4)
+  * Mr.Purple's T28 - For **everything else** as this is the latest Mesa/Turnip driver that should work for everything else.
+    
 * Removes the restriction on new packages names for the APKs. Normal NetherSX2 had to be installed over AetherSX2 whereas NetherSX2-Turnip lives alongside your existing NetherSX2/AetherSX2 and does not overwrite your existing AetherSX2/NetherSX2 installs or settings.
 
 * Vulkan is now the default renderer (instead of OpenGL)
@@ -43,6 +46,12 @@ There is one setting that can make a big difference and that is Hardware Downloa
 Additionally, for the **Need For Speed** games at least, setting Blending Accuracy to Minimum can make a big difference on lower powered devices.
 
 For **The Getaway** set Blending Accuracy to High (gets rid of the white fog), Hardware Download Mode to Disable Readbacks and EE Cycle Rate to 60% (-2)
+
+For **Gran Turismo 4** if you can see your car, but the background looks all black, that can be fixed via going to Settings -> Advanced -> Scroll down to Disable Framebuffer Fetch and set it as disabled. That should fix it.
+
+For **Star Ocean: Till the end of Time** if you have issues with the faces of characters flickering/having bad shadows go to Settings then scroll to the far most right Advanced tab. Find the option there called Enable VU0 Recompiler (Micro Mode) and turn it off while in game. You will need to turn it back on when you restart the game for the game to start properly.
+
+For **Dragon Ball Z - Budokai Tenkaichi 3** hold down on the game to bring up the Game Properties. In there go to the Advanced Settings and set the following: Auto Flush (Hardware): On, Half-Pixel Offset: Special (Texture), Software CLUT Render: Normal, Texture Inside RT: Inside Target, Skip Draw Start: 3, Skip Draw End: 3, TC Offset X (/1000): 200, TC Offset Y (/1000): 400. In Graphics Settings set Hardware Download Mode to Disable Readbacks else you will most likely get poor FPS.
 
 ## NetherSX2 Classic / v3668
 
