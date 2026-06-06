@@ -882,6 +882,7 @@ extern "C" int get_adreno_model(char *value) {
 		if (strstr(value, "CQ8725S")) return 830; /* Dragonwing Q8 */
 		if (strstr(value, "SM8735")) return 825;  /* 8s Gen 4 */
 		if (strstr(value, "SM7635")) return 810;  /* Snapdragon 7s Gen 3 and 4 */
+		if (strstr(value, "SM6650")) return 810;  /* Snapdragon 6 Gen 4 */
 		
         /* extend as needed */
 		if (value[0] != 0) return 0;		// If we got a value just return the string
@@ -956,7 +957,9 @@ static int chip_id_to_adreno(unsigned int chip_id) {
     return 0; /* unknown */
 }
 
+// Random Notes :)
 // Hitman 2: Blood Money - "Texture Inside RT" - this inbuilt fix is causing the rainbow effect. Hold on the game to go game properties to get to the game fixes.
+// Pocket ACE - Adreno 740 - T28 = 24-27 (Punisher Accurate), v26.2.0_R4 = 25-28 
 /* ------------------------------------------------------------------ */
 /* Constructor                                                         */
 /* ------------------------------------------------------------------ */
@@ -1008,7 +1011,7 @@ void shim_init(void) {
 	const char *driver_dir = g_lib_dir;  // default
 	const char *override_path = "/data/local/tmp/libvulkan_freedreno.so";
 	const char *adreno8_driver = "libvulkan_freedreno_a8xx-turnip-gen8-V31.so";
-	const char *everything_else_driver = "libvulkan_freedreno_T28.so";
+	const char *everything_else_driver =  "libvulkan_freedreno_T28.so"; // "libvulkan_freedreno_v26.2.0_R4.so";
 	if (access(override_path, F_OK) == 0) 
 	{
 		strcpy(g_turnip_path, override_path);
@@ -1025,8 +1028,9 @@ void shim_init(void) {
 		else
 		{
 			if (strcmp(value, "SM8250") == 0 || strcasecmp(value, "kona") == 0 || 		// SD865 (Adreno 650)
-				strcmp(value, "SM8350") == 0 || strcasecmp(value, "lahaina") == 0 ||	// SD888 (Adreno 660)
-				strcasecmp(value, "sdm845") == 0 || strcasecmp(value, "napali") == 0	// SD845 (Adreno 630)
+				// strcmp(value, "SM8350") == 0 || strcasecmp(value, "lahaina") == 0 ||	// SD888 (Adreno 660) - seems to have issues - better to use everything driver
+				// strcasecmp(value, "sdm845") == 0 || strcasecmp(value, "napali") == 0 ||	// SD845 (Adreno 630) - seems to have issues - better to use everything driver 
+				strcmp(value, "SM7325") == 0 											// Snapdragon 778G Adreno 642
 			   ) 
 			{
 				snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_v24.1.0_R18.a6xx-Patched.so", g_lib_dir);		// For SD865 - Use a patched Turnip. Change Hardware mode to Disable Readbacks if crashing.
@@ -1037,23 +1041,25 @@ void shim_init(void) {
 				if (adreno_model != 0) 
 				{
 					if (adreno_model == 810) 
-					{ 	// Snapdragon 8s Gen 3/4
+					{ 	// Snapdragon 8s Gen 3/4 + Snapdragon 6 Gen 4
 						snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_T24.so", g_lib_dir);		// Use this for Adreno 810
 						LOGI("VulkanShim: Using Mr Purple T24 for Snapdragon 7s Gen 3/4");
 					}
-					else					
-					if (adreno_model == 825) 
-					{ 	// Snapdragon 8s Gen 4 ?
-						g_disable_fbfetch = 1;
-						LOGI("VulkanShim: Setting g_disable_fbfetch = 1 for Adreno 825");
-					}
+					else
+					{						
+						if (adreno_model == 825) 
+						{ 	// Snapdragon 8s Gen 4 ?
+							g_disable_fbfetch = 1;
+							LOGI("VulkanShim: Setting g_disable_fbfetch = 1 for Adreno 825");
+						}
 
-					snprintf(g_turnip_path, sizeof(g_turnip_path), "%s%s", g_lib_dir, adreno8_driver);		// Use this for Adreno 8 (adreno8_driver)
-					LOGI("VulkanShim: Using Snapdragon Default ELITE driver");
+						snprintf(g_turnip_path, sizeof(g_turnip_path), "%s%s", g_lib_dir, adreno8_driver);		// Use this for Adreno 8 (adreno8_driver)
+						LOGI("VulkanShim: Using Snapdragon Default ELITE driver");
+					}
 				} 
 				else 
 				{
-					if (strstr(gpu_name, "710") || strstr(gpu_name, "720")) 											// Adreno 710, 720 needs special consideration. Needs Gmem + additions to upstream
+					if (strstr(gpu_name, "710") || strstr(gpu_name, "720") || strcmp(value, "SM6475") == 0) 	// Adreno 710, 720 needs special consideration. Needs Gmem + additions to upstream (Snapdragon 6 Gen 3 = SM6475)
 					{
 						snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_25.3.0_R6_Gmem.so", g_lib_dir);
 						LOGI("VulkanShim: Using Adreno 710/720 driver");
@@ -1070,6 +1076,7 @@ void shim_init(void) {
 							//snprintf(g_turnip_path, sizeof(g_turnip_path), "%slibvulkan_freedreno_25.3.0_R5_one_ui7_fix.so", g_lib_dir);	// Samsung UI 7+ Driver - https://github.com/K11MCH1/AdrenoToolsDrivers/releases/tag/v25.3.0-rc.05
 							//LOGI("VulkanShim: Using OneUI specific driver");
 						}
+
 						if (strcmp(value, "SM8635") == 0 || strcmp(value, "SSM8550") == 0) /* SM8635: 8s Gen 3 (Adreno 735) SSM8550: Snapdragon 8 Gen 2 (Adreno 740) - Needs Gmem */
 						{
 							LOGI("VulkanShim: Setting TU_DEBUG=gmem,nolrz for 8s Gen 3/8 Gen 2");
